@@ -95,6 +95,12 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+    juce::dsp::ProcessSpec spec; //prepares the filters before using them - spec gets passed to each link in the chain
+    spec.maximumBlockSize = samplesPerBlock; //max # of amples to process at once
+    spec.numChannels = 1; //for mono
+    spec.sampleRate = sampleRate;
+    leftChain.prepare(spec);
+    rightChain.prepare(spec);
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -143,19 +149,14 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
-
-        // ..do something to the data...
-    }
+    juce::dsp::AudioBlock<float> block(buffer); //processor chains need processor contexts each context has audio block that will be passed to the links in the chain
+    auto leftBlock = block.getSingleChannelBlock(0); //extracts left channnel audio into a block
+    auto rightBlock = block.getSingleChannelBlock(1);
+    juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock); //Passes the block to the audio context
+    juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
+    //now we can pass the context to the chains
+    leftChain.process(leftContext);
+    rightChain.process(rightContext);
 }
 
 //==============================================================================

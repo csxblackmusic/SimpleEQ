@@ -55,7 +55,11 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-private:
-    //==============================================================================
+private: //dsp will only process a single channel of audio at once
+    using Filter = juce::dsp::IIR::Filter<float>; //type alias
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; //each filter is 12db/oct by default - this chain gives us 4x12 =4 8db/oct
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;//processor chains process all the audio its passed in a context with whats in your chain
+    MonoChain leftChain, rightChain; //since dsp is mono by default and were writing a stereo plugin
+    //==============================================================================t
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
