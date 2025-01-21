@@ -101,6 +101,13 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     spec.sampleRate = sampleRate;
     leftChain.prepare(spec);
     rightChain.prepare(spec);
+    auto chainSettings = getChainSettings(apvts); //makes the filter with the values from our interface
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, 
+                                                                                chainSettings.peakFreq, 
+                                                                                chainSettings.peakQuality, 
+                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    *leftChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -149,6 +156,13 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+    auto chainSettings = getChainSettings(apvts); //makes the filter with the values from our interface
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(),// sets up peak/bandpass filter
+        chainSettings.peakFreq,
+        chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    *leftChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
     juce::dsp::AudioBlock<float> block(buffer); //processor chains need processor contexts each context has audio block that will be passed to the links in the chain
     auto leftBlock = block.getSingleChannelBlock(0); //extracts left channnel audio into a block
     auto rightBlock = block.getSingleChannelBlock(1);
@@ -164,12 +178,28 @@ bool SimpleEQAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
+
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
+{
+    ChainSettings settings;
+    settings.lowCutFreq = apvts.getRawParameterValue("LowCut Freq")->load(); //getRawParamValue returns the value in units that are meaningful (db,Hz, db/oct) rather than normalized values
+    settings.highCutFreq = apvts.getRawParameterValue("HighCut Freq")->load(); //loads the param values into an instance of the struct
+    settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
+    settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
+    settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
+    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
+    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+    return settings;
+
+}
+
+
 juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     layout.add(std::make_unique<juce::AudioParameterFloat>("LowCut Freq", 
                                                            "LowCut Freq",
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f,1.f), 20.f));
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f,1.f), 20.f));//creates a pointer that gets cleaned up when its out of scope
     layout.add(std::make_unique<juce::AudioParameterFloat>("HighCut Freq",
                                                            "HighCut Freq",
                                                             juce::NormalisableRange<float>(20.f, 20000.f,1.f, 1.f), 20000.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
