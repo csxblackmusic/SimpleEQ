@@ -108,7 +108,7 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
                                                                                 juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
     *leftChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
     *rightChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
-}
+}//updating 
 
 void SimpleEQAudioProcessor::releaseResources()
 {
@@ -163,6 +163,103 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
     *leftChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
     *rightChain.get<ChainPosition::Peak>().coefficients = *peakCoefficients;
+
+    //adding coefficients for the cut filters in the left and right channels
+    auto cutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq, getSampleRate(), (chainSettings.lowCutSlope + 1) * 2);//slope(db/oct) of cutfilters known as its order - this helper function creates these filters
+    auto& leftLowCut = leftChain.get<ChainPosition::LowCut>();
+    leftLowCut.setBypassed<0>(true); //bypass all four of the filters in the LowCutChain 
+    leftLowCut.setBypassed<1>(true);
+    leftLowCut.setBypassed<2>(true);
+    leftLowCut.setBypassed<3>(true);
+
+    switch (chainSettings.lowCutSlope)
+    {
+        case Slope_12:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //set the filter coefficient
+            leftLowCut.setBypassed<0>(false); // turn the filter back on
+            break;
+        }
+        case Slope_24:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            break;
+        }
+        case Slope_36:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<2>(false);
+            break;
+
+        }
+        case Slope_48:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<2>(false);
+            *leftLowCut.get<3>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<3>(false);
+            break;
+        }
+    }
+    // setting coefficients for the rightLow cut filter
+    auto& rightLowCut = rightChain.get<ChainPosition::LowCut>();
+    rightLowCut.setBypassed<0>(true); //bypass all four of the filters in the LowCutChain 
+    rightLowCut.setBypassed<1>(true);
+    rightLowCut.setBypassed<2>(true);
+    rightLowCut.setBypassed<3>(true);
+
+    switch (chainSettings.lowCutSlope)
+    {
+        case Slope_12:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0]; //set the filter coefficient
+            rightLowCut.setBypassed<0>(false); // turn the filter back on
+            break;
+        }
+        case Slope_24:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            rightLowCut.setBypassed<0>(false); //turns the filter back on
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            rightLowCut.setBypassed<1>(false);
+            break;
+        }
+        case Slope_36:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            rightLowCut.setBypassed<0>(false); //turns the filter back on
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            rightLowCut.setBypassed<2>(false);
+            break;
+
+        }
+        case Slope_48:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            rightLowCut.setBypassed<0>(false); //turns the filter back on
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            rightLowCut.setBypassed<2>(false);
+            *rightLowCut.get<3>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            rightLowCut.setBypassed<3>(false);
+            break;
+        }
+    }
+
     juce::dsp::AudioBlock<float> block(buffer); //processor chains need processor contexts each context has audio block that will be passed to the links in the chain
     auto leftBlock = block.getSingleChannelBlock(0); //extracts left channnel audio into a block
     auto rightBlock = block.getSingleChannelBlock(1);
@@ -187,8 +284,8 @@ ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
     settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
     settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
     settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
-    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
-    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+    settings.lowCutSlope = static_cast<Slope>(apvts.getRawParameterValue("LowCut Slope")->load());
+    settings.highCutSlope = static_cast<Slope>(apvts.getRawParameterValue("HighCut Slope")->load());
     return settings;
 
 }
@@ -199,22 +296,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     layout.add(std::make_unique<juce::AudioParameterFloat>("LowCut Freq", 
                                                            "LowCut Freq",
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f,1.f), 20.f));//creates a pointer that gets cleaned up when its out of scope
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f,0.25f), 20.f));//creates a pointer that gets cleaned up when its out of scope
     layout.add(std::make_unique<juce::AudioParameterFloat>("HighCut Freq",
                                                            "HighCut Freq",
-                                                            juce::NormalisableRange<float>(20.f, 20000.f,1.f, 1.f), 20000.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
+                                                            juce::NormalisableRange<float>(20.f, 20000.f,1.f, 0.25f), 20000.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
     layout.add(std::make_unique<juce::AudioParameterFloat>("Peak Freq",
                                                            "Peak Freq",
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f), 750.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f), 750.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
     layout.add(std::make_unique<juce::AudioParameterFloat>("Peak Gain",
                                                            "Peak Gain",
-                                                           juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f), 20000.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
+                                                           juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 0.25f), 20000.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
     layout.add(std::make_unique<juce::AudioParameterFloat>("Peak Quality",
                                                            "Peak Quality",
-                                                           juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f), 1.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
+                                                           juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 0.25f), 1.f)); //argument list (label,label,low range of slider, high range,step size,pot taper), default value
     juce::StringArray stringArray;
     for (int i = 0; i < 4; i++)
     {
+
+        //for slope choice 0: 12 db/oct we need an order of 2 (1 coeff)
+        //for slope choice 1: 24 db/oct we need an order of 4 (2 coeff)
         juce::String str;
         str << (12 +( i * 12));
         str << " db/Oct";
