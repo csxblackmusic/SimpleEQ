@@ -86,6 +86,58 @@ private: //dsp will only process a single channel of audio at once
     void updatePeakFilter(const ChainSettings& chainSettings);
     using Coefficients = Filter::CoefficientsPtr;
     static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+    template<typename ChainType, typename CoefficientType>
+    void updateCutFilter(ChainType& leftLowCut,
+        const CoefficientType& cutCoefficients,
+        const ChainSettings& chainSettings)
+    {
+        leftLowCut.setBypassed<0>(true); //bypass all four of the filters in the LowCutChain 
+        leftLowCut.setBypassed<1>(true);
+        leftLowCut.setBypassed<2>(true);
+        leftLowCut.setBypassed<3>(true);
+
+        switch (chainSettings.lowCutSlope)
+        {
+        case Slope_12:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //set the filter coefficient
+            leftLowCut.setBypassed<0>(false); // turn the filter back on
+            break;
+        }
+        case Slope_24:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            break;
+        }
+        case Slope_36:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<2>(false);
+            break;
+
+        }
+        case Slope_48:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0]; //since its a second order filter two coefficients are returned
+            leftLowCut.setBypassed<0>(false); //turns the filter back on
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1]; //set the filter coefficient
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<2>(false);
+            *leftLowCut.get<3>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            leftLowCut.setBypassed<3>(false);
+            break;
+        }
+        }
+
+    }
     //==============================================================================t
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };

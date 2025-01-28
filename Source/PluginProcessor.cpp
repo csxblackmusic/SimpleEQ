@@ -136,6 +136,8 @@ bool SimpleEQAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
   #endif
 }
 #endif
+
+
 void SimpleEQAudioProcessor::updatePeakFilter(const ChainSettings& chainSettings)
 {
     auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(),// sets up peak/bandpass filter
@@ -166,9 +168,12 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         buffer.clear (i, 0, buffer.getNumSamples());
     auto chainSettings = getChainSettings(apvts); //makes the filter with the values from our interface
     updatePeakFilter(chainSettings);
-    //adding coefficients for the cut filters in the left and right channels
     auto cutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq, getSampleRate(), (chainSettings.lowCutSlope + 1) * 2);//slope(db/oct) of cutfilters known as its order - this helper function creates these filters
     auto& leftLowCut = leftChain.get<ChainPosition::LowCut>();
+    updateCutFilter(leftLowCut, cutCoefficients,chainSettings.lowCutSlope);
+    //adding coefficients for the cut filters in the left and right channels
+/*
+    
     leftLowCut.setBypassed<0>(true); //bypass all four of the filters in the LowCutChain 
     leftLowCut.setBypassed<1>(true);
     leftLowCut.setBypassed<2>(true);
@@ -214,8 +219,12 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             break;
         }
     }
+    */
     // setting coefficients for the rightLow cut filter
     auto& rightLowCut = rightChain.get<ChainPosition::LowCut>();
+    updateCutFilter(rightLowCut, cutCoefficients, chainSettings);
+
+/*
     rightLowCut.setBypassed<0>(true); //bypass all four of the filters in the LowCutChain 
     rightLowCut.setBypassed<1>(true);
     rightLowCut.setBypassed<2>(true);
@@ -261,7 +270,7 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             break;
         }
     }
-
+*/
     juce::dsp::AudioBlock<float> block(buffer); //processor chains need processor contexts each context has audio block that will be passed to the links in the chain
     auto leftBlock = block.getSingleChannelBlock(0); //extracts left channnel audio into a block
     auto rightBlock = block.getSingleChannelBlock(1);
