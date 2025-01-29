@@ -131,7 +131,7 @@ private: //dsp will only process a single channel of audio at once
             leftLowCut.setBypassed<1>(false);
             *leftLowCut.get<2>().coefficients = *cutCoefficients[2]; //set the filter coefficient
             leftLowCut.setBypassed<2>(false);
-            *leftLowCut.get<3>().coefficients = *cutCoefficients[2]; //set the filter coefficient
+            *leftLowCut.get<3>().coefficients = *cutCoefficients[3]; //set the filter coefficient
             leftLowCut.setBypassed<3>(false);
             break;
         }
