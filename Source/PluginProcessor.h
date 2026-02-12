@@ -30,7 +30,8 @@ ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts); //Wil
 //==============================================================================
 /**
 */
-class SimpleEQAudioProcessor  : public juce::AudioProcessor
+//Audio Processor for the program
+class SimpleEQAudioProcessor  : public juce::AudioProcessor 
 {
 public:
     //==============================================================================
